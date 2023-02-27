@@ -1,0 +1,58 @@
+#!/Users/temporary/anaconda3/envs/VVCORE_dynasor/bin/python
+import numpy as np
+import time
+import argparse
+
+# Custom dependences
+from VVCORElib_seq_h5 import save_signal
+from VVCORElib_seq_h5 import compute_ift
+
+def parser():
+    """Parser of the arguments"""
+    parser = argparse.ArgumentParser(description='VVCORE - autocorrelation function tool')
+    parser.add_argument('-path', type=str, default='./', help='Path to the folder with trajectory')
+    parser.add_argument('-opt', type=str, default='dens cur_T cur_L', help='Program option')
+    parser.add_argument('-N_auto', type=int, default=1000, help='Number of frames to autocorrelate')
+
+    parser.add_argument('-Nq', type=int, default=50, help='Number of q points to resolve (for cubic lattices)')
+    
+    parser.add_argument('-ts', type=float, default=25, help='Timestep of the simulation in ps (10^(-12) s)')
+    parser.add_argument('-wmax', type=float, default=40, help='Frequency window')
+    parser.add_argument('-dw', type=float, default= 0.05, help='Frequency step')
+    args = parser.parse_args()
+    return args
+
+if __name__ == "__main__":
+    
+    start_time_program = time.time()
+    
+    args = parser()
+
+    path = args.path
+    opts = args.opt.split()
+
+    N_auto = args.N_auto
+    
+    Nq = args.Nq
+    
+    ############## Compute ift part ###############################################
+    start_time_ift = time.time()
+
+    wmax = args.wmax
+    dw = args.dw
+    ts = args.ts
+
+    res = compute_ift(path, N_auto, Nq, ts, wmax, dw, opts)
+
+    time_ift = time.time() - start_time_ift
+
+
+    ############# Save ift #########################
+    start_time_comm_3 = time.time()
+
+    for opt in opts:
+        save_signal(res[opt], f"{path}/spec_{opt}.h5")
+        res.pop(opt)
+
+    time_comm_3 = time.time() - start_time_comm_3
+    time_program = time.time() - start_time_program
