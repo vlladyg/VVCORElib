@@ -16,10 +16,10 @@ rho_j_k_s_ext = Extension('_rho_j_k_s',
                           extra_link_args=[],
                           )
 
-setup (name = 'VVCORElib_mpi',
+setup (name = 'VVCORElib_seq_csv',
        version = '1.0',
        description = 'This is version of VVCORE with sequential reading of csv LAMMPS outputs',
-       packages=['VVCORElib_mpi'],
+       packages=['VVCORElib_seq_csv'],
        ext_modules = [rho_j_k_d_ext, rho_j_k_s_ext],
-       scripts=['VVCORE_mpi', 'VVCORE_mpi_reduce', 'VVCORE_mpi_auto', 'VVCORE_mpi_collect', 'VVCORE_mpi_ift'],
-       install_requires=['numpy', 'scipy', 'psutil', 'h5py', 'mpi4py'])
+       scripts=['VVCORE_seq_csv', 'VVCORE_seq_csv_reduce', 'VVCORE_seq_csv_auto', 'VVCORE_seq_csv_collect', 'VVCORE_seq_csv_ift'],
+       install_requires=['numpy', 'scipy', 'psutil', 'csvpy'])

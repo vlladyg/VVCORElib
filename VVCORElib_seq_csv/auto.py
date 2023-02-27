@@ -2,12 +2,10 @@ import numpy as np
 from scipy import signal
 import h5py
 
-from .utils import get_start_end_2D, get_start_end
-
-def compute_auto(path, N, Nq, chunk_size, opts, comm):
+def compute_auto(path, N, Nq, chunk_size, opts):
     assert(N % chunk_size == 0)
     Nchunks = N//chunk_size
-    q_ind, chunk_ind = get_start_end_2D(Nq, Nchunks, comm.size, comm.rank)
+    q_ind, chunk_ind = np.array(range(Nq)), np.array(range(Nchunks))
     res = {}
     for opt in opts:
         signal_f = h5py.File(f"{path}/{opt}.h5", 'r')
@@ -37,19 +35,9 @@ def auto_transform(s, chunk_size):
     return signal_auto
 
 
-def stack_auto(Nq, Nchunks, s):
-    """Converts list of dicts to dict of stacked lists"""
-    s_final = {}
-    for k in s[0].keys():
-        s_final[k] = np.zeros((s[0][k].shape[0], Nq), dtype = np.complex128)
-        for i in range(len(s)):
-            s_final[k][:, i%Nq] += s[i][k][:, 0]
-        s_final[k] /= Nchunks
-    return s_final
-
-def collect_auto(path, folders, Nq, opts, comm):
+def collect_auto(path, folders, Nq, opts):
     """Averages autocorrelated signal from multiple trajectories"""
-    q_ind = get_start_end(Nq, comm.size, comm.rank)
+    q_ind = range(Nq)
     
     res = {opt: {} for opt in opts}
     

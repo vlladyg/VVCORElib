@@ -4,17 +4,16 @@ import time
 import argparse
 
 # Custom dependences
-from VVCORElib_mpi import save_signal, stack
-from VVCORElib_mpi import compute_auto, stack_auto
+from VVCORElib_seq_csv import save_signal
+from VVCORElib_seq_csv import collect_auto
 
 
 def parser():
     """Parser of the arguments"""
     parser = argparse.ArgumentParser(description='VVCORE - autocorrelation function tool')
-    parser.add_argument('-path', type=str, default='./', help='Path to the folder with trajectory')
+    parser.add_argument('-path', type=str, default='./', help='Path to the folder with folders')
+    parser.add_argument('-folders', type=str, default='1 2 3 4 5 6 7 8', help='Folders with trajectories')
     parser.add_argument('-opt', type=str, default='dens cur_T cur_L', help='Program option')
-    parser.add_argument('-N_frames', type=int, default=10000, help='Number of frames readed in one chunk')
-    parser.add_argument('-N_auto', type=int, default=1000, help='Number of frames to autocorrelate')
 
     parser.add_argument('-Nq', type=int, default=50, help='Number of q points to resolve (for cubic lattices)')
     args = parser.parse_args()
@@ -23,40 +22,28 @@ def parser():
 if __name__ == "__main__":
     
     start_time_program = time.time()
-    from mpi4py import MPI
-    comm = MPI.COMM_WORLD
     
     args = parser()
 
     path = args.path
+    folders = args.folders.split()
     opts = args.opt.split()
-
-    N = args.N_frames
-    N_auto = args.N_auto
     
     Nq = args.Nq
     
     ############## Compute auto part ###############################################
     start_time_auto = time.time()
 
-    res = compute_auto(path, N, Nq, N_auto, opts, comm)
+    res = collect_auto(path, folders, Nq, opts)
 
-    time_auto =time.time() - start_time_auto
+    time_auto = time.time() - start_time_auto
 
     ############## Save auto ######################################
     start_time_comm_2 = time.time()
 
     for opt in opts:
-        res_cur = comm.gather(res[opt], root = 0)
-        if comm.rank == 0:
-            if comm.size > Nq:
-                res_cur = stack_auto(Nq, N//N_auto, res_cur)
-            else:
-                res_cur = stack(res_cur, dim = 1)
-            save_signal(res_cur, f"{path}/auto_{opt}.h5")
-            del res_cur
+        save_signal(res[opt], f"{path}/auto_{opt}.h5")
         res.pop(opt)
 
-    comm.Barrier()
     time_comm_2 = time.time() - start_time_comm_2
     time_program = time.time() - start_time_program

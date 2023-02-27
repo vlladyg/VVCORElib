@@ -2,9 +2,10 @@ import numpy as np
 import os
 import psutil
 import time
-from .utils import get_types_ind, gen_output_dict, get_num_iter, signal_mem, get_start_end
+
+from .utils import get_types_ind, gen_output_dict, get_num_iter, signal_mem
 from .qgrids import grids
-from .trajectory_reader import trajectory_h5
+from .trajectory_reader import trajectory_csv
 
 import ctypes
 import distutils.sysconfig
@@ -72,9 +73,8 @@ def frame_to_signal(pos, vel, Q, Qn, opts):
 
     return res
 
-def compute_signal(traj_file, N, Nq_path, Nq, lattice, a, c, M, opts, partial, phase_noise, noise_ind, noise_ratio, comm):
+def compute_signal(traj_file, N, Nq_path, Nq, lattice, a, c, M, opts, partial):
     """Initializes computations for signal"""
-    np.random.seed(comm.rank)
     
     if os.path.exists(f"qgrid.h5"):
         Q, Qn = grids['file']()
@@ -86,22 +86,22 @@ def compute_signal(traj_file, N, Nq_path, Nq, lattice, a, c, M, opts, partial, p
             
     Q = Q[:, :Nq]; Qn = Qn[:Nq]
     Nq = Q.shape[1]
-    frame_ind = get_start_end(N, comm.size, comm.rank)
+    frame_ind = np.array(range(N))
     ind = get_types_ind()
     if isinstance(M, type(None)):
         M = {key: np.float64(1) for key in ind}
-    traj = trajectory_h5(traj_file, ind, M, vel_flag = not (len(opts) == 1 and opts[0] == 'dens'))
-    mem = psutil.virtual_memory().available/comm.size/2**20
+    traj = trajectory_csv(traj_file, ind, M, vel_flag = not (len(opts) == 1 and opts[0] == 'dens'))
+    mem = psutil.virtual_memory().available/1/2**20
     Nsplit, Qsplit = signal_mem(mem, max([ind[key].size for key in ind]), Nq, opts)
     
     if Qsplit < 1:
         print("WARNING: Your setup takes too much memory on a single process, job might cancel due to out of memory error")
         Qsplit = 1
     
-    return signal(traj, Q, Qn, frame_ind, Nsplit, Qsplit, opts, partial, phase_noise, noise_ind, noise_ratio)
+    return signal(traj, Q, Qn, frame_ind, Nsplit, Qsplit, opts, partial)
 
 
-def signal(traj, Q, Qn, frame_ind, Nsplit, Qsplit, opts, partial, phase_noise, noise_ind, noise_ratio):
+def signal(traj, Q, Qn, frame_ind, Nsplit, Qsplit, opts, partial):
     """Computes signal splitted according to memory requirenemnts"""
     Nq = Q.shape[1]
     if partial:
@@ -117,11 +117,7 @@ def signal(traj, Q, Qn, frame_ind, Nsplit, Qsplit, opts, partial, phase_noise, n
     for i in range(frame_ind[0], frame_ind[-1]+1):
         
         start_time_read = time.time()
-        pos, vel = traj.read_one_frame(i)
-        if phase_noise:
-            random_ind = np.random.randint(traj.ind[f'{noise_ind + 1}'].min(), traj.ind[f'{noise_ind + 1}'].max(), int(noise_ratio*vel.shape[0]))
-            vel[random_ind] *= -1
-        
+        pos, vel = traj.read_one_frame()
         read_time += time.time() - start_time_read
         
         start_time_compute = time.time()
