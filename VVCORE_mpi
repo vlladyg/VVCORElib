@@ -1,11 +1,12 @@
 #!/Users/temporary/anaconda3/envs/VVCORE_dynasor/bin/python
 import numpy as np
 import time
+import h5py
 import argparse
 
 # Custom dependences
 from VVCORElib_mpi import save_signal, stack
-from VVCORElib_mpi import compute_signal
+from VVCORElib_mpi import compute_signal, compute_signal_normal_modes
 from VVCORElib_mpi import compute_auto, stack_auto
 from VVCORElib_mpi import compute_ift, stack_ift
 
@@ -30,7 +31,9 @@ def parser():
     parser.add_argument('-dw', type=float, default= 0.05, help='Frequency step')
     
     parser.add_argument('--partial', help='Option for computing all partial contributions', action='store_true')
-    
+    parser.add_argument('--normal_modes', help='Option for computing projections onto normal modes', action='store_true')
+
+   
     parser.add_argument('--phase_noise', help='Option for adding noise to atomic vibrations (flips the velocity of random atoms)', action='store_true')
     parser.add_argument('-noise_ind', type=int, default=0, help='Specifies to what atoms noise should be added')
     parser.add_argument('-noise_ratio', type=float, default=0.0, help='Ratio of noisy atoms')
@@ -52,31 +55,42 @@ if __name__ == "__main__":
 
     N = args.N_frames
 
-    lattice = args.lattice
-    Nq_path = args.Nq_path
-    Nq = args.Nq
-    a = args.a
-    c = args.c
+
+    if not args.normal_modes:
+        lattice = args.lattice
+        Nq_path = args.Nq_path
+        Nq = args.Nq
+        a = args.a
+        c = args.c
     
     
     
-    if not isinstance(args.M, type(None)):
-        M = args.M.split()
-        M = {str(i+1): np.float64(M[i]) for i in range(len(M))}
+        if not isinstance(args.M, type(None)):
+            M = args.M.split()
+            M = {str(i+1): np.float64(M[i]) for i in range(len(M))}
     
-    partial = args.partial
+        partial = args.partial
     
     
-    phase_noise = args.phase_noise
-    noise_ind = args.noise_ind
-    noise_ratio = args.noise_ratio
+        phase_noise = args.phase_noise
+        noise_ind = args.noise_ind
+        noise_ratio = args.noise_ratio
     
-    if noise_ind >= len(M.keys()):
-        raise ValueError('Index of atom is out of bounds')
+        if noise_ind >= len(M.keys()):
+           raise ValueError('Index of atom is out of bounds')
     
+    else:
+        opts = ['v_k']
+        with h5py.File('./outfile.dispersion_relations.hdf5', 'r') as f:
+            Nq = f['eigenvectors_re'].shape[0]*f['eigenvectors_re'].shape[1]
+
     start_time_signal = time.time()
-    #################  Compute signal part  #############################################3
-    res, read_time, compute_time = compute_signal(traj_file, N, Nq_path, Nq, lattice, a, c, M, opts, partial, phase_noise, noise_ind, noise_ratio, comm)
+    #################  Compute signal part  #############################################
+    if not args.normal_modes:
+         res, read_time, compute_time = compute_signal(traj_file, N, Nq_path, Nq, lattice, a, c, M, opts, partial, phase_noise, noise_ind, noise_ratio, comm)
+    else:
+         res, read_time, compute_time = compute_signal_normal_modes(traj_file, N, opts, comm)
+
 
     time_signal = time.time() - start_time_signal
     start_time_comm_1 = time.time()

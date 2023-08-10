@@ -88,3 +88,38 @@ void rho_j_k(const RHOPREC x_vec[][3], const RHOPREC v_vec[][3], int N_x,
   }
 }
 
+void v_k(const RHOPREC v_vec[][3], int N_x,
+             const RHOPREC (* restrict egv)[6], int N_k,
+             RHOPREC (* restrict v_k)[6]){
+
+  int x_i, k_i;
+  RHOPREC v_ki_0, v_ki_1, v_ki_2, v_ki_3, v_ki_4, v_ki_5;
+
+  {
+
+    /* Iter k vector x m modes */
+  for(k_i=0; k_i<N_k; k_i++){
+    v_ki_0 = 0.0;
+    v_ki_1 = 0.0;
+    v_ki_2 = 0.0;
+    v_ki_3 = 0.0;
+    v_ki_4 = 0.0;
+    v_ki_5 = 0.0;
+    for(x_i=0; x_i<N_x; x_i++){
+      v_ki_0 += egv[k_i][0] * v_vec[x_i][0];
+      v_ki_1 += egv[k_i][1] * v_vec[x_i][0];
+      v_ki_2 += egv[k_i][2] * v_vec[x_i][1];
+      v_ki_3 += egv[k_i][3] * v_vec[x_i][1];
+      v_ki_4 += egv[k_i][4] * v_vec[x_i][2];
+      v_ki_5 += egv[k_i][5] * v_vec[x_i][2];
+    }
+    v_k[k_i][0] = v_ki_0;
+    v_k[k_i][1] = v_ki_1;
+    v_k[k_i][2] = v_ki_2;
+    v_k[k_i][3] = v_ki_3;
+    v_k[k_i][4] = v_ki_4;
+    v_k[k_i][5] = v_ki_5;
+  }
+
+  }
+}

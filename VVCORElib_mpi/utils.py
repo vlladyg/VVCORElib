@@ -29,12 +29,25 @@ def get_start_end(N, size, rank):
             return None
     return np.array(range(start, end))
 
+
 def get_types_ind():
     """Generates index dict from h5 file"""
     g = h5py.File('ind.h5', 'r')
     ind = {key: np.array(g[key]) for key in g.keys()}
     g.close()
     return ind
+
+def get_egv():
+    """Reads eigenvalues from tdep file"""
+    g = h5py.File('outfile.dispersion_relations.hdf5', 'r')
+    egv_tmp = np.array(g['eigenvectors_re']) + 1.0j*np.array(g['eigenvectors_im']) 
+    g.close()
+
+
+    Nq = egv_tmp.shape[0]; Nm = egv_tmp.shape[1]
+
+    return { str(i+1): np.array(egv_tmp[:, :, i*3:(i+1)*3].reshape((Nq*Nm, 3)), dtype = np.complex128, order = 'C').T for i in range(egv_tmp.shape[2]//3) }
+
 
 def signal_mem(mem, Natoms, Nq, opts):
     """Returns optimal partitioning on Nq and Number of frames for the process"""
