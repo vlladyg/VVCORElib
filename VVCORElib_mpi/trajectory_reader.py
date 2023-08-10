@@ -6,7 +6,7 @@ class trajectory_h5():
     """Gets pointer to trajectory file
     Saves pointer to a file"""
 
-    def __init__(self, traj_file, ind, M, vel_flag = True):
+    def __init__(self, traj_file, ind, M = None, vel_flag = True):
         if not (traj_file[-3:] == '.h5'):
             raise ValueError("Wrong file formal (not hdf5)")
         self.mode = 'h5md'
