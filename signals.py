@@ -52,17 +52,23 @@ def compute_signal(traj_file, N, Nq, lattice, a, opts, comm):
     else:
         Q, Qn = grids[lattice](Nq, a)
 
+    start_time_init = time.time()
     num_of_devices = cp.cuda.runtime.getDeviceCount()
     cp.cuda.Device(comm.rank%num_of_devices).use()
+    time_init = time.time() - start_time_init
     
     Q = cp.array(Q[:Nq]); Qn = cp.array(Qn[:Nq])
     frame_ind = get_start_end(N, comm.size, comm.rank)
     ind = get_types_ind("ind.h5")
 
+
+    start_time_init = time.time()
     nvidia_smi.nvmlInit()
     handle = nvidia_smi.nvmlDeviceGetHandleByIndex(comm.rank%num_of_devices)
     info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
     mem = info.free/2**20/(comm.size//num_of_devices)
+
+    print(time_init)
     
     Nsplit, Qsplit = signal_mem(mem, max([ind[key].size for key in ind]), Nq, opts)
     
