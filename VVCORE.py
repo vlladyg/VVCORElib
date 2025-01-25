@@ -2,6 +2,7 @@ import time
 
 import cupy as cp
 import numpy as np
+import nvidia_smi
 
 from signals import compute_signal
 from utils import stack, dict_from_device, save_signal
@@ -12,7 +13,15 @@ if __name__ == "__main__":
     start_time_program = time.time()
     from mpi4py import MPI
     comm = MPI.COMM_WORLD
-    
+
+    nvidia_smi.nvmlInit()
+
+    num_of_devices = nvidia_smi.nvmlDeviceGetCount()
+    cp.cuda.Device(comm.rank%num_of_devices).use()
+
+    handle = nvidia_smi.nvmlDeviceGetHandleByIndex(comm.rank%num_of_devices)
+    info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
+
     ############### Cur calculation #####################
     opts = ['cur', 'cur_T', 'cur_L']
     
@@ -28,10 +37,12 @@ if __name__ == "__main__":
     a = 6.125
     Nq = 30
     
-    
+    time_init = time.time() - start_time_program
+    if comm.rank == 0:
+        print(time_init)
     start_time_signal = time.time()
-    #################  Compute signal part  #############################################3
-    res_cp, read_time, compute_time = compute_signal(traj_file, N, Nq, lattice, a, opts, comm)
+    #################  Compute signal part  #############################################
+    res_cp, read_time, compute_time = compute_signal(traj_file, N, Nq, lattice, a, opts, comm, num_of_devices, handle, info)
     
     time_signal = time.time() - start_time_signal
     start_time_comm_1 = time.time()
@@ -61,6 +72,8 @@ if __name__ == "__main__":
         time_total = np.zeros_like(time_proc)
     else:
         time_total = None
+
+    nvidia_smi.nvmlShutdown()
     
     comm.Reduce([time_proc, MPI.DOUBLE], [time_total, MPI.DOUBLE], op=MPI.SUM, root=0)
     

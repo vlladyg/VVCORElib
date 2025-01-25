@@ -1,7 +1,6 @@
 import cupy as cp
 import numpy as np
 import os
-import nvidia_smi
 import time
 
 from utils import get_types_ind, gen_output_dict, get_num_iter, signal_mem, get_start_end
@@ -43,7 +42,7 @@ def frame_to_signal(p_proj, vel, Qn, opts):
 
     return res
 
-def compute_signal(traj_file, N, Nq, lattice, a, opts, comm):
+def compute_signal(traj_file, N, Nq, lattice, a, opts, comm, num_of_devices, handle, info):
     """Initializes computations for signal"""
     traj = trajectory_h5(traj_file, vel_flag = not (len(opts) == 1 and opts[0] == 'dens'))
     
@@ -51,11 +50,6 @@ def compute_signal(traj_file, N, Nq, lattice, a, opts, comm):
         Q, Qn = grids['file']()
     else:
         Q, Qn = grids[lattice](Nq, a)
-
-    start_time_init = time.time()
-    num_of_devices = cp.cuda.runtime.getDeviceCount()
-    cp.cuda.Device(comm.rank%num_of_devices).use()
-    time_init = time.time() - start_time_init
     
     Q = cp.array(Q[:Nq]); Qn = cp.array(Qn[:Nq])
     frame_ind = get_start_end(N, comm.size, comm.rank)
@@ -63,12 +57,9 @@ def compute_signal(traj_file, N, Nq, lattice, a, opts, comm):
 
 
     start_time_init = time.time()
-    nvidia_smi.nvmlInit()
-    handle = nvidia_smi.nvmlDeviceGetHandleByIndex(comm.rank%num_of_devices)
-    info = nvidia_smi.nvmlDeviceGetMemoryInfo(handle)
+    
     mem = info.free/2**20/(comm.size//num_of_devices)
 
-    print(time_init)
     
     Nsplit, Qsplit = signal_mem(mem, max([ind[key].size for key in ind]), Nq, opts)
     
@@ -76,7 +67,6 @@ def compute_signal(traj_file, N, Nq, lattice, a, opts, comm):
         print("WARNING: Your setup takes too much memory on a single process, job might cancel due to out of memory error")
         Qsplit = 1
     res, read_time, compute_time = signal(traj, Q, Qn, ind, frame_ind, Nsplit, Qsplit, opts)
-    nvidia_smi.nvmlShutdown()
     return res, read_time, compute_time
 
 
