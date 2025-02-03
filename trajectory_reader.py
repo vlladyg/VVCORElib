@@ -1,42 +1,33 @@
 import h5py
+import cupy as cp
 import numpy as np
-
 
 class trajectory_h5():
     """Gets pointer to trajectory file
     Saves pointer to a file"""
 
-    def __init__(self, traj_file, ind, M = None, vel_flag = True):
+    def __init__(self, traj_file, vel_flag = True):
         if not (traj_file[-3:] == '.h5'):
             raise ValueError("Wrong file formal (not hdf5)")
         self.mode = 'h5md'
         self.file = h5py.File(traj_file, 'r')
-        self.ind = ind
-        self.M = M
-        self.vel_flag = vel_flag 
-  
-    def read_one_frame(self, i):
-        """Reads frame with index i"""
-        pos = np.array(self.file['particles']['all']['position']['value'][i], order = 'C')
-        vel = None
-        if self.vel_flag:
-            vel = np.array(self.file['particles']['all']['velocity']['value'][i], order= 'C')
-        return pos, vel
+        self.vel_flag = vel_flag   
 
     def get_slice(self, N1, N2=None, axis = 0):
         """Gets slice of trajectory along axis"""
-        if axis == 0:
-            pos = np.array(self.file['particles']['all']['position']['value'][N1:N2])
-            vel = None
-            if self.vel_flag:
-                vel = np.array(self.file['particles']['all']['velocity']['value'][N1:N2])
-        elif axis == 1:
-            pos = np.array(self.file['particles']['all']['position']['value'][:, N1:N2])
-            vel = None
-            if self.vel_flag:
-                vel = np.array(self.file['particles']['all']['velocity']['value'][:, N1:N2])
-        else:
-            raise AttributeError
+        if self.mode == 'h5md':
+            if axis == 0:
+                pos = cp.array(self.file['particles']['all']['position']['value'][N1:N2])
+                vel = None
+                if self.vel_flag:
+                    vel = cp.array(self.file['particles']['all']['velocity']['value'][N1:N2])
+            elif axis == 1:
+                pos = cp.array(self.file['particles']['all']['position']['value'][:, N1:N2])
+                vel = None
+                if self.vel_flag:
+                    vel = cp.array(self.file['particles']['all']['velocity']['value'][:, N1:N2])
+            else:
+                raise AttributeError
        
         return pos, vel
         
@@ -53,7 +44,9 @@ def get_lammps_info(traj_file):
         N = int(f.readline().rstrip())
         f.readline()
         # Reading lattice from the simulation from the first frame
-        lattice = np.array([float(f.readline().rstrip().split()[1]) for i in range(3)])
+        lattice = np.array([float(f.readline().rstrip().split()[1]),
+              float(f.readline().rstrip().split()[1]),
+              float(f.readline().rstrip().split()[1])])
 
     return N, lattice[newaxis, :]
 
@@ -73,7 +66,7 @@ class trajectory_csv(trajectory_h5):
         """Reads one frame using pointer to the file"""
         for i in range(9):
             self.file.readline()
-        data = np.array([self.file.readline().split() for i in range(self.Natoms)], dtype = float64, order = 'C')
+        data = array([self.file.readline().rstrip().split() for i in range(self.Natoms)], dtype = float64)
 
         pos = data[:, 2:5]*self.lattice
         vel = None
@@ -83,10 +76,10 @@ class trajectory_csv(trajectory_h5):
 
     def get_slice(self, N):
         """Gets slice of trajectory along axis"""
-        pos = np.zeros((N, self.Natoms, 3), order = 'C')
+        pos = np.zeros((N, self.Natoms, 3))
         vel = None
         if self.vel_flag:
-            vel = np.zeros((N, self.Natoms, 3), order = 'C')
+            vel = np.zeros((N, self.Natoms, 3))
         for i in range(N):
             if self.vel_flag:
                 pos[i, :, :], vel[i, :, :] = self.read_one_frame()
